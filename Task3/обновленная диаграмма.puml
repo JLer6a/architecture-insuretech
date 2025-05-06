@@ -1,0 +1,46 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(client, "Клиент", "Клиент")
+System_Boundary(insuretech, "InsureTech Prod") {
+
+  Container(web, "InsureTech Web", "JavaScript, React", "Веб-приложение InsureTech")
+  Container(core, "core-app", "Kotlin, SpringBoot", "Основное бизнес-приложение, оформление заявок, отображение тарифов и продуктов")
+  Container(clientInfo, "client-info", "Kotlin, SpringBoot", "Сервис клиентских данных")
+  Container(coreDb, "core-db", "PostgreSQL", "Хранение тарифов и заявок")
+  Container(aggregator, "ins-product-aggregator", "Kotlin, SpringBoot", "Интеграция со страховыми, сбор тарифов")
+  Container(settlement, "ins-comp-settlement", "Kotlin, SpringBoot", "Расчёты и взаимодействие со страховыми")
+  Container(settlementDb, "ins-comp-settlement-db", "PostgreSQL", "Хранение расчётов по страховым")
+  Container(settlementClientDb, "ins-comp-settlement-db", "PostgreSQL", "Хранение клиентских данных для расчётов")
+  Container(outboxDispatcher, "Outbox Dispatcher", "Java/Kotlin", "Читает события из Transactional Outbox и отправляет их в Kafka")
+}
+
+System_Ext(insurerSystems, "Системы страховых компаний", "REST / SOAP / GraphQL")
+System_Ext(paymentSystem, "Платёжный сервис", "Проведение оплаты за страховки")
+System_Ext(partnerSystems, "Системы партнёров", "Интеграция с сервисами продаж")
+System_Ext(kafka, "Kafka", "Event Streaming")
+System_Ext(outbox, "Transactional Outbox", "Обеспечение доставки событий")
+
+Rel(client, web, "HTTP")
+Rel(web, core, "REST", "Передача информации о клиентах")
+Rel(web, clientInfo, "REST", "Сохранение / получение данных о клиентах")
+Rel(core, clientInfo, "REST", "Получение информации о клиентах")
+Rel(core, aggregator, "REST", "Получение тарифов и продуктов")
+Rel(core, settlement, "REST", "Оформление страховок")
+Rel(core, coreDb, "JDBC", "Работа с данными")
+Rel(clientInfo, coreDb, "JDBC", "Хранение клиентских данных")
+Rel(settlement, settlementDb, "JDBC")
+Rel(settlement, settlementClientDb, "JDBC")
+Rel(aggregator, insurerSystems, "REST / SOAP / GraphQL")
+Rel(settlement, insurerSystems, "REST / SOAP / GraphQL")
+Rel(core, paymentSystem, "HTTP", "Оплата")
+Rel(core, partnerSystems, "REST", "Оформление через партнёров")
+
+' Новое взаимодействие с Kafka + Outbox
+Rel(core, outbox, "Публикация событий")
+Rel(outboxDispatcher, outbox, "Чтение событий")
+Rel(outboxDispatcher, kafka, "InsuranceRequestCreated →", "Kafka Event")
+Rel(kafka, aggregator, "← Подписка на события")
+Rel(kafka, settlement, "← Подписка на события")
+
+@enduml
